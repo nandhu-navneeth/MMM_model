@@ -18,6 +18,21 @@ ENV/
 # Build / reports / outputs
 outputs/
 
+# Assessment-2 additions
+# Python
+__pycache__/
+*.pyc
+
+# Jupyter
+.ipynb_checkpoints/
+.notebooks/
+
+# Envs & outputs
+.venv/
+out/
+data/
+*.csv
+
 # Data (avoid committing raw data)
 data/*.csv
 data/*.parquet

@@ -1,77 +1,46 @@
-**Marketing Mix Modeling (MMM) with Mediation**
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nandhu-navneeth/MMM_model/blob/main/notebooks/Assessment2_MMM_Mediation.ipynb)
 
-This repo implements a causal‑aware MMM for weekly data with the explicit assumption that Google spend acts as a mediator between upper‑funnel social/display (Facebook, TikTok, Snapchat) and Revenue. The solution emphasizes interpretability, time‑aware validation, robust preprocessing, and practical recommendations.
+# MMM (Mediation-Aware): Social → Google (Mediator) → Revenue
+- Deterministic, time-aware MMM with adstock+saturation, blocked CV, final holdout.
+- Stage-1: Predict Google spend from social (mediated path).
+- Stage-2: Predict revenue from **predicted** Google + price, promotions, CRM controls, seasonality & trend.
+- Optional non-linear Stage-2 (boosting) with residualized social for direct effects.
 
-**Quick Start**
-- Place your CSV in `data/input.csv` (see schema below).
-- Run training: `python src/train_mmm.py --data data/input.csv`
-- Run sensitivity (price/promo): `python src/run_sensitivity.py --data data/input.csv`
- - Decompose mediated vs direct effects: `python src/run_mediation_decomp.py --data data/input.csv`
+## Data Schema
+- Required: `week`, `revenue`, `google_spend`.
+- Social: `facebook_spend`, `tiktok_spend`, `instagram_spend`, `snapchat_spend`.
+- CRM/Controls: `social_followers`, `emails_send`, `sms_send`, `average_price`, `promotions`.
+- Notes: weekly granularity; dates parsable; zeros allowed.
 
-**Data Schema (column names are configurable via `--config`)**
-- Required: `date`, `revenue`
-- Paid media: `facebook_spend`, `tiktok_spend`, `snapchat_spend`, `google_spend`
-- Direct response: `email_sends`, `sms_sends`
-- Controls: `avg_price`, `promotions`, `followers`
+## Environment & Repro
+- Create venv: `python3 -m venv .venv && source .venv/bin/activate`
+- Install: `pip install -r requirements.txt`
+- CLI run (assessment-2): `python src/train_mmm_assessment2.py --data YOUR.csv --out out/`
+- Alternatively (existing CLI): `python src/train_mmm.py --data data/input.csv`
+- Notebook: use the Colab badge above and run all cells.
 
-Put your file at `data/input.csv` with at least the required columns. Dates must be weekly (one row per week). Zero‑spend weeks are allowed.
+## Causal Framing (DAG)
+- Assumed DAG: Social → Google → Revenue, with possible Social → Revenue.
+- Leakage avoidance: use predicted Google (from Stage-1) in Stage-2, not realized Google.
+- Time-respecting validation prevents look-ahead bias.
 
-**Modeling Approach (Short Write‑up)**
+## Validation Protocol
+- Blocked `TimeSeriesSplit` for hyperparameters; 20% final holdout.
+- Report: R2, RMSE, MAPE on train and holdout; curves for actual vs predicted.
 
-- Data preparation:
-  - Weekly frequency enforced; missing weeks filled with zeros for spend and forward‑fill for slowly moving controls (e.g., followers). Outliers for spends can be optionally winsorized.
-  - Seasonality: Fourier series (k=3) on week‑of‑year; linear trend term.
-  - Transformations: Geometric adstock for paid media; saturation via a Hill‑like squashing (log1p/hyperbolic alternative) to capture diminishing returns. Zeros handled via `log1p` and adstock inherently accommodates zero periods.
-  - Scaling: Robust scaling (median/IQR) in model pipeline to stabilize coefficients.
+## Diagnostics
+- Plots: train/test curves saved to `out/` by CLI; inline in notebook.
+- Coefficients: ElasticNet coefficients table (importance snapshot).
+- Residual checks: optional boosting with residualized social for non-linear effects.
 
-- Causal framing (Google as mediator):
-  - Stage 1 (Mediator model): `google_spend_t` is modeled as a function of upper‑funnel channels (`facebook`, `tiktok`, `snapchat`) with appropriate transforms + seasonality/controls. This estimates search demand stimulation.
-  - Stage 2 (Outcome model): `revenue_t` is modeled as a function of predicted mediator (`google_spend_hat`) plus direct paths from upper‑funnel channels and controls. Using the predicted mediator (not realized) helps avoid post‑treatment bias/leakage and aligns with the DAG.
-  - DAG intuition: Social → Google → Revenue, with possible direct Social → Revenue. We avoid conditioning on realized Google (a collider for downstream feedback), and use time‑respecting cross‑validation.
+## Sensitivity
+- Price/promo sensitivity on last week: ±10% price grid, promo ON/OFF.
 
-- Modeling choice:
-  - Elastic Net for interpretability and stability with correlated features. Hyperparameters chosen via blocked, rolling time‑series cross‑validation.
-  - Adstock decay and saturation strength are tuned via a small grid in CV. Controls include `avg_price`, `promotions`, `email/sms`, `followers`, seasonality, trend.
+## Limitations & Next Steps
+- Static adstock per-channel; extend to per-channel λ tuning.
+- Explore finite impulse response (bounded lags) and Bayesian calibration.
+- Add uncertainty bands and budget optimizer on top of the fitted model.
 
-- Validation & Diagnostics:
-  - Blocked, expanding window CV to prevent look‑ahead. Metrics: RMSE, MAPE, R².
-  - Residual analysis: autocorrelation checks, stability of coefficients across folds.
-  - Sensitivity: Counterfactual sweeps for `avg_price` and `promotions` to quantify elasticity and promo lift under the fitted model.
-  - Mediation decomposition: finite‑difference counterfactual that bumps each social channel by Δ% and separates direct vs mediated lift by holding `mediator_hat` fixed in a second prediction pass.
+## License
+MIT (see `LICENSE`).
 
-- Insights & Recommendations (how to use):
-  - Decompose effects into direct (social → revenue) and mediated (social → google_hat → revenue). Report elasticities and ROI by channel within current operating range.
-  - Flag collinearity risk (spend moving together) and emphasize using instrumented mediator to reduce leakage.
-  - Use sensitivity results to propose guardrails: expected revenue changes for ±X% price and promo intensity; recommend budget shifts considering mediated search effects.
-
-**Reproducibility & Craft**
-- Deterministic `random_state` everywhere; time‑aware CV; minimal dependencies.
-- Code organized into `src/mmm/*` modules and runnable scripts.
-
-**Config**
-- See `src/config/default.json` to map your column names if your dataset differs. Override via `--config path/to.json`.
-
-**File Structure**
-- `src/mmm/` core library (data prep, transforms, mediation, modeling, metrics)
-- `src/train_mmm.py` train pipeline with CV and diagnostics
-- `src/run_sensitivity.py` price/promo sensitivity runner
-- `data/input.csv` your dataset (not in repo)
-
-**Environment**
-- Python >= 3.9, pandas, numpy, scikit‑learn, matplotlib, seaborn.
-- Optional: statsmodels (for ACF plots), but not required.
-
-**DAG (Conceptual)**
-
-```
-Facebook/TikTok/Snapchat  →  Google Spend (mediator)  →  Revenue
-           ↘———————————————(possible direct path)———————————↗
-Controls (Price, Promo, Email/SMS, Seasonality, Trend) → Revenue
-```
-
-Notes on leakage/back‑door paths:
-- We avoid conditioning on realized Google when estimating the outcome to reduce post‑treatment bias; we use `google_hat` predicted from stage 1.
-- Back‑door paths like Revenue → Google (via budgets or bidding) are attenuated by instrumenting Google through upper‑funnel and exogenous controls, and by using time‑aware CV.
-
-
-If you want a notebook instead of scripts, consider converting the scripts into cells; the code is organized to make that straightforward.
