@@ -18,6 +18,7 @@
 - CLI run (assessment-2): `python src/train_mmm_assessment2.py --data YOUR.csv --out out/`
 - Alternatively (existing CLI): `python src/train_mmm.py --data data/input.csv`
 - Notebook: use the Colab badge above and run all cells.
+ - Note (Colab/Python 3.12): the notebook uses `numpy>=2.0,<2.3` to avoid binary incompatibilities with system packages; local `requirements.txt` remains pinned for determinism.
 
 ## Causal Framing (DAG)
 - Assumed DAG: Social → Google → Revenue, with possible Social → Revenue.
@@ -43,4 +44,3 @@
 
 ## License
 MIT (see `LICENSE`).
-
