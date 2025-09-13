@@ -1,0 +1,29 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual environments
+.env
+.venv
+venv/
+ENV/
+
+# IDEs and notebooks
+.idea/
+.vscode/
+.DS_Store
+.ipynb_checkpoints/
+
+# Build / reports / outputs
+outputs/
+
+# Data (avoid committing raw data)
+data/*.csv
+data/*.parquet
+data/*.xlsx
+data/*.tsv
+
+# Logs
+*.log
+

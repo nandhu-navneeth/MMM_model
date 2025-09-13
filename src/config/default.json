@@ -1,0 +1,9 @@
+{
+  "date": "date",
+  "target": "revenue",
+  "google": "google_spend",
+  "social": ["facebook_spend", "tiktok_spend", "snapchat_spend"],
+  "direct": ["email_sends", "sms_sends"],
+  "controls": ["avg_price", "promotions", "followers"]
+}
+
